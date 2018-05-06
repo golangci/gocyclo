@@ -16,7 +16,7 @@
 //
 // The output fields for each line are:
 // <complexity> <package> <function> <file:row:column>
-package main
+package gocyclo
 
 import (
 	"flag"
@@ -25,11 +25,9 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 )
 
 const usageDoc = `Calculate cyclomatic complexities of Go functions.
@@ -58,27 +56,16 @@ var (
 	avg  = flag.Bool("avg", false, "show the average complexity")
 )
 
-func main() {
-	log.SetFlags(0)
-	log.SetPrefix("gocyclo: ")
-	flag.Usage = usage
-	flag.Parse()
-	args := flag.Args()
-	if len(args) == 0 {
-		usage()
-	}
-
-	stats := analyze(args)
+func Run(paths []string) []Stat {
+	stats := analyze(paths)
 	sort.Sort(byComplexity(stats))
-	written := writeStats(os.Stdout, stats)
 
-	if *avg {
-		showAverage(stats)
+	var retStats []Stat
+	for _, s := range stats {
+		retStats = append(retStats, Stat(s))
 	}
 
-	if *over > 0 && written > 0 {
-		os.Exit(1)
-	}
+	return retStats
 }
 
 func analyze(paths []string) []stat {
@@ -102,18 +89,16 @@ func analyzeFile(fname string, stats []stat) []stat {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, fname, nil, 0)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	return buildStats(f, fset, stats)
 }
 
 func analyzeDir(dirname string, stats []stat) []stat {
-	filepath.Walk(dirname, func(path string, info os.FileInfo, err error) error {
-		if err == nil && !info.IsDir() && strings.HasSuffix(path, ".go") {
-			stats = analyzeFile(path, stats)
-		}
-		return err
-	})
+	files, _ := filepath.Glob(filepath.Join(dirname, "*.go"))
+	for _, f := range files {
+		stats = analyzeFile(f, stats)
+	}
 	return stats
 }
 
@@ -148,6 +133,8 @@ type stat struct {
 	Complexity int
 	Pos        token.Position
 }
+
+type Stat stat
 
 func (s stat) String() string {
 	return fmt.Sprintf("%d %s %s %s", s.Complexity, s.PkgName, s.FuncName, s.Pos)
