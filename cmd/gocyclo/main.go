@@ -30,7 +30,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/golangci/gocyclo/pkg/gocyclo"
+	"github.com/fzipp/gocyclo/pkg/gocyclo"
 )
 
 const usageDoc = `Calculate cyclomatic complexities of Go functions.
