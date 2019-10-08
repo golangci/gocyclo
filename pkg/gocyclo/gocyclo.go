@@ -20,6 +20,25 @@ func (s Stat) String() string {
 
 func BuildStats(f *ast.File, fset *token.FileSet, stats []Stat) []Stat {
 	for _, decl := range f.Decls {
+		switch fn := decl.(type) {
+		// FuncLit
+		case *ast.GenDecl:
+			for _, spec := range fn.Specs {
+				if valueSpec, ok := spec.(*ast.ValueSpec); ok {
+					for _, value := range valueSpec.Values {
+						if funcLit, ok := value.(*ast.FuncLit); ok {
+							stats = append(stats, stat{
+								PkgName:    f.Name.Name,
+								FuncName:   valueSpec.Names[0].Name,
+								Complexity: complexity(funcLit.Body),
+								Pos:        fset.Position(fn.Pos()),
+							})
+						}
+					}
+				}
+			}
+		// FuncDecl
+		case *ast.FuncDecl:
 		if fn, ok := decl.(*ast.FuncDecl); ok {
 			stats = append(stats, Stat{
 				PkgName:    f.Name.Name,
@@ -57,7 +76,7 @@ func recvString(recv ast.Expr) string {
 }
 
 // complexity calculates the cyclomatic complexity of a function.
-func complexity(fn *ast.FuncDecl) int {
+func complexity(fn ast.Node) int {
 	v := complexityVisitor{}
 	ast.Walk(&v, fn)
 	return v.Complexity
